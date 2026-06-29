@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User, UserRole } from '@/types'
-import { mockUsers } from '@/constants/mockData'
 import { roleDashboardPaths } from '@/constants/navigation'
+import api from '@/services/api'
 
 interface AuthContextType {
   user: User | null
@@ -16,6 +16,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const AUTH_KEY = 'learnflow_auth'
+const TOKEN_KEY = 'learnflow_access_token'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -28,34 +29,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(JSON.parse(stored))
       } catch {
         localStorage.removeItem(AUTH_KEY)
+        localStorage.removeItem(TOKEN_KEY)
       }
     }
     setIsLoading(false)
   }, [])
 
-  const login = async (email: string, _password: string, role: UserRole = 'student') => {
-    await new Promise((r) => setTimeout(r, 800))
-    const mockUser = { ...mockUsers[role], email }
-    setUser(mockUser)
-    localStorage.setItem(AUTH_KEY, JSON.stringify(mockUser))
+  const login = async (email: string, password: string, role: UserRole = 'student') => {
+    try {
+      const { data } = await api.post('/auth/login', { email, password, role })
+      const { user: userData, accessToken } = data
+      setUser(userData)
+      localStorage.setItem(AUTH_KEY, JSON.stringify(userData))
+      localStorage.setItem(TOKEN_KEY, accessToken)
+    } catch (error: any) {
+      throw new Error(error?.response?.data?.message || 'Login failed. Please check your credentials.')
+    }
   }
 
-  const register = async (name: string, email: string, _password: string, role: UserRole) => {
-    await new Promise((r) => setTimeout(r, 800))
-    const newUser: User = { ...mockUsers[role], name, email }
-    setUser(newUser)
-    localStorage.setItem(AUTH_KEY, JSON.stringify(newUser))
+  const register = async (name: string, email: string, password: string, role: UserRole) => {
+    try {
+      const { data } = await api.post('/auth/register', { name, email, password, role })
+      const { user: userData, accessToken } = data
+      setUser(userData)
+      localStorage.setItem(AUTH_KEY, JSON.stringify(userData))
+      localStorage.setItem(TOKEN_KEY, accessToken)
+    } catch (error: any) {
+      throw new Error(error?.response?.data?.message || 'Registration failed. Please try again.')
+    }
   }
 
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem(AUTH_KEY)
+  const logout = async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      // ignore errors on logout
+    } finally {
+      setUser(null)
+      localStorage.removeItem(AUTH_KEY)
+      localStorage.removeItem(TOKEN_KEY)
+    }
   }
 
   const switchRole = (role: UserRole) => {
-    const mockUser = mockUsers[role]
-    setUser(mockUser)
-    localStorage.setItem(AUTH_KEY, JSON.stringify(mockUser))
+    // Role switching only works with mock users; with real backend this is a no-op
+    console.warn('switchRole is a dev-only feature. Not supported with real backend.')
   }
 
   return (
