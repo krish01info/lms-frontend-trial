@@ -119,6 +119,7 @@ export function CreateCoursePage() {
         price: values.price ? parseFloat(values.price) : 0,
         status: 'PUBLISHED',
         videoUrl,
+        thumbnail: thumbnailUrl,
       })
 
       toast.success('Course created successfully!')
