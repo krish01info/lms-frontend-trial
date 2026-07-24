@@ -82,6 +82,18 @@ function categorizeFileType(mimeType: string): ResourceType {
   return 'other'
 }
 
+// Formats a rupee amount for admin/payment cards. Previously every revenue
+// figure was hardcoded as `₹${(amount / 100000).toFixed(1)}L`, which always
+// rounds to "₹0.0L" for any amount under ~₹50,000 — exactly the range real
+// course fees/test payments fall in. This scales the unit to the amount
+// instead of always assuming lakhs.
+export function formatINR(amount: number): string {
+  const n = Number(amount) || 0
+  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)}Cr`
+  if (n >= 100000) return `₹${(n / 100000).toFixed(2)}L`
+  return `₹${n.toLocaleString('en-IN')}`
+}
+
 export function transformResource(raw: ApiResource, courseTitle: string): Resource {
   return {
     id: raw.id,

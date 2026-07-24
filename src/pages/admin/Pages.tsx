@@ -8,6 +8,7 @@ import {
   FileText,
   ScrollText,
 } from 'lucide-react'
+import { formatINR } from '@/utils/transformers'
 import { PageShell } from '@/components/common/PageShell'
 import { Pagination } from '@/components/common/Pagination'
 import { TableSkeleton, CardSkeleton } from '@/components/common/Skeleton'
@@ -363,19 +364,19 @@ export function AdminPaymentsPage() {
         <Card><CardContent className="p-6">
           <p className="text-sm text-muted-foreground">Total Revenue</p>
           <p className="text-2xl font-bold">
-            {statsLoading ? '—' : `₹${((stats?.totalRevenue ?? 0) / 100000).toFixed(1)}L`}
+            {statsLoading ? '—' : formatINR(stats?.totalRevenue ?? 0)}
           </p>
         </CardContent></Card>
         <Card><CardContent className="p-6">
           <p className="text-sm text-muted-foreground">Pending</p>
           <p className="text-2xl font-bold text-amber-600">
-            {statsLoading ? '—' : `₹${((stats?.pending ?? 0) / 100000).toFixed(1)}L`}
+            {statsLoading ? '—' : formatINR(stats?.pending ?? 0)}
           </p>
         </CardContent></Card>
         <Card><CardContent className="p-6">
           <p className="text-sm text-muted-foreground">This Month</p>
           <p className="text-2xl font-bold text-emerald-600">
-            {statsLoading ? '—' : `₹${((stats?.thisMonth ?? 0) / 100000).toFixed(1)}L`}
+            {statsLoading ? '—' : formatINR(stats?.thisMonth ?? 0)}
           </p>
         </CardContent></Card>
       </div>
@@ -400,9 +401,9 @@ export function AdminPaymentsPage() {
               <tbody>
                 {data!.payments.map((p) => (
                   <tr key={p.id} className="border-b last:border-0">
-                    <td className="p-4 text-sm font-medium">{p.user.name}</td>
-                    <td className="p-4 text-sm text-muted-foreground">{p.course.title}</td>
-                    <td className="p-4 text-sm">₹{Number(p.amount).toLocaleString()}</td>
+                    <td className="p-4 text-sm font-medium">{p.user?.name ?? 'Unknown user'}</td>
+                    <td className="p-4 text-sm text-muted-foreground">{p.course?.title ?? 'Unknown course'}</td>
+                    <td className="p-4 text-sm">{formatINR(Number(p.amount))}</td>
                     <td className="p-4">
                       <Badge
                         variant={
