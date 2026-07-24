@@ -64,13 +64,22 @@ export function CourseDetailPage() {
 
   // Mutation to mark a lesson as complete
   const completeMutation = useMutation({
-    mutationFn: async (lessonId: string) => {
-      const res = await api.patch(`/progress/${lessonId}`, { completed: true })
+    mutationFn: async (lesson: { id: string; duration?: number }) => {
+      const res = await api.patch(`/progress/${lesson.id}`, {
+        completed: true,
+        // lesson.duration is already in seconds (matches backend watchedTime
+        // units — see Lesson.duration in schema.prisma). No real per-second
+        // video-watch tracking exists yet, so we approximate "time studied"
+        // as the full lesson duration when a student marks it complete.
+        // This powers Learning Hours / the Weekly Progress chart.
+        watchedTime: lesson.duration ?? 0,
+      })
       return res.data.data.progress
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['progress-course', id] })
       queryClient.invalidateQueries({ queryKey: ['progress-my'] })
+      queryClient.invalidateQueries({ queryKey: ['progress-weekly-hours'] })
       queryClient.invalidateQueries({ queryKey: ['attendance-my'] })
       toast.success('Lesson marked as complete!')
     },
@@ -185,7 +194,7 @@ export function CourseDetailPage() {
                           <Button
                             variant={isCompleted ? 'outline' : 'default'}
                             size="sm"
-                            onClick={() => completeMutation.mutate(lesson.id)}
+                            onClick={() => completeMutation.mutate({ id: lesson.id, duration: lesson.duration })}
                             disabled={completeMutation.isPending}
                             className={isCompleted ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : ''}
                           >
