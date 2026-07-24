@@ -7,7 +7,6 @@ import { StatCard } from '@/components/common/StatCard'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { weeklyProgressData } from '@/constants/mockData'
 import api from '@/services/api'
 
 export function ProgressPage() {
@@ -16,6 +15,15 @@ export function ProgressPage() {
     queryFn: async () => {
       const res = await api.get('/progress/my')
       return res.data.data.progress
+    },
+  })
+
+  // Same queryKey as StudentDashboard — shares cache, no duplicate fetch
+  const { data: weeklyHoursData, isLoading: isWeeklyHoursLoading } = useQuery({
+    queryKey: ['progress-weekly-hours'],
+    queryFn: async () => {
+      const res = await api.get('/progress/my/weekly-hours')
+      return res.data.data.weeklyHours as Array<{ name: string; hours: number }>
     },
   })
 
@@ -29,10 +37,11 @@ export function ProgressPage() {
   })
 
   const courses = courseProgress || []
+  const weeklyHours = weeklyHoursData || []
   const avgProgress = courses.length
     ? Math.round(courses.reduce((acc: number, c: any) => acc + c.percentage, 0) / courses.length)
     : 0
-  const totalHours = weeklyProgressData.reduce((acc, d) => acc + d.hours, 0)
+  const totalHours = weeklyHours.reduce((acc, d) => acc + d.hours, 0)
 
   const courseProgressChart = courses.map((c: any) => ({
     name: c.courseTitle.split(' ').slice(0, 2).join(' '),
@@ -51,12 +60,17 @@ export function ProgressPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Avg. Course Progress" value={`${avgProgress}%`} trend="up" icon={TrendingUp} />
-        <StatCard label="Study Hours" value={`${totalHours.toFixed(1)}h`} change="This week" icon={Clock} />
+        <StatCard
+          label="Study Hours"
+          value={isWeeklyHoursLoading ? '—' : `${totalHours.toFixed(1)}h`}
+          change="This week"
+          icon={Clock}
+        />
         <StatCard label="Active Courses" value={courses.length} icon={BookOpen} iconClassName="bg-secondary/10" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard title="Weekly Study Hours (mock)" data={weeklyProgressData} dataKey="hours" type="area" />
+        <ChartCard title="Weekly Study Hours" data={weeklyHours} dataKey="hours" type="area" />
         <ChartCard title="Course Completion" data={courseProgressChart} type="bar" dataKey="value" xKey="name" />
       </div>
 
