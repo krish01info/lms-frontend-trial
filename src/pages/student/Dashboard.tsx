@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -8,11 +7,7 @@ import {
   CheckCircle,
   ClipboardList,
   Clock,
-  Copy,
   GraduationCap,
-  Key,
-  RefreshCw,
-  Shield,
   TrendingUp,
   UserPlus,
   Users,
@@ -27,7 +22,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { mockCalendarEvents } from '@/constants/mockData'
 import { useAuth } from '@/contexts/AuthContext'
 import { transformCourse, transformAssignment } from '@/utils/transformers'
 import api from '@/services/api'
@@ -141,37 +135,6 @@ export function StudentDashboard() {
 
   const pendingRequests = linkRequestData || []
 
-  // Parent invite code state & query
-  const [copiedCode, setCopiedCode] = useState(false)
-  const { data: inviteCodeData, isLoading: isCodeLoading } = useQuery({
-    queryKey: ['parent-invite-code'],
-    queryFn: async () => {
-      const res = await api.get('/users/parent-code')
-      return res.data.data as { code: string | null; expiresAt: string | null }
-    },
-  })
-
-  const generateCodeMutation = useMutation({
-    mutationFn: async () => {
-      const res = await api.post('/users/generate-parent-code')
-      return res.data.data
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['parent-invite-code'], data)
-      toast.success('Parent invite code generated!')
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || 'Failed to generate code.')
-    },
-  })
-
-  const handleCopyCode = (code: string) => {
-    navigator.clipboard.writeText(code)
-    setCopiedCode(true)
-    toast.success('Invite code copied to clipboard!')
-    setTimeout(() => setCopiedCode(false), 2000)
-  }
-
   // Live announcements — institute-wide + enrolled-course announcements
   const { data: announcementsData, isLoading: isAnnouncementsLoading } = useQuery({
     queryKey: ['announcements'],
@@ -203,7 +166,6 @@ export function StudentDashboard() {
   // Sum this week's hours for the stat card from the same weekly-hours response
   const totalWeeklyHours = weeklyHours.reduce((sum, day) => sum + day.hours, 0)
 
-  const todayClasses = mockCalendarEvents.filter((e) => e.type === 'class').slice(0, 3)
   const dueAssignments = allAssignments.filter((a: any) => a.status === 'pending' || a.status === 'overdue')
 
   return (
@@ -268,7 +230,7 @@ export function StudentDashboard() {
           <p className="text-sm text-white/80">{user?.grade}</p>
           <h2 className="mt-1 text-2xl font-bold sm:text-3xl">Keep up the great work!</h2>
           <p className="mt-2 max-w-md text-white/80">
-            You have {dueAssignments.length} assignments due this week and {todayClasses.length} classes today (sample).
+            You have {dueAssignments.length} assignments due this week.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button variant="glass" asChild>
@@ -283,76 +245,9 @@ export function StudentDashboard() {
         <div className="absolute -bottom-12 -right-12 h-56 w-56 rounded-full bg-white/5" />
       </motion.div>
 
-      {/* ── Parent Linking Invite Code Widget ─────────────────────────────── */}
-      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-        <CardContent className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-              <Shield className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold flex items-center gap-2">
-                Parent Linking Code
-                <Badge variant="outline" className="text-[10px] font-normal border-primary/30">Share with Parent</Badge>
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Share this 6-character code with your parent to link accounts and share progress.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end shrink-0">
-            {isCodeLoading ? (
-              <div className="h-9 w-32 bg-muted animate-pulse rounded-lg" />
-            ) : inviteCodeData?.code ? (
-              <div className="flex items-center gap-2">
-                <div className="rounded-xl border border-primary/30 bg-background px-3 py-1.5 font-mono text-lg font-bold tracking-[0.25em] text-primary">
-                  {inviteCodeData.code}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleCopyCode(inviteCodeData.code!)}
-                  className="shrink-0"
-                >
-                  <Copy className="h-4 w-4 mr-1" />
-                  {copiedCode ? 'Copied' : 'Copy'}
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => generateCodeMutation.mutate()}
-                  disabled={generateCodeMutation.isPending}
-                  title="Regenerate code"
-                >
-                  <RefreshCw className={`h-4 w-4 ${generateCodeMutation.isPending ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
-            ) : (
-              <Button
-                size="sm"
-                className="bg-primary text-primary-foreground"
-                onClick={() => generateCodeMutation.mutate()}
-                disabled={generateCodeMutation.isPending}
-              >
-                <Key className="h-4 w-4 mr-1.5" />
-                {generateCodeMutation.isPending ? 'Generating...' : 'Generate Parent Code'}
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Attendance" value={`${Math.round(attendancePercentage)}%`} icon={Users} />
-        <StatCard
-          label="Avg Progress"
-          value={progress.length ? `${Math.round(progress.reduce((s: number, c: any) => s + c.percentage, 0) / progress.length)}%` : '—'}
-          change="Across all courses"
-          trend="up"
-          icon={Award}
-          iconClassName="bg-emerald-500/10"
-        />
+        <StatCard label="Current GPA" value="3.85" change="Sample data" trend="up" icon={Award} iconClassName="bg-emerald-500/10" />
         <StatCard
           label="Courses Active"
           value={isCoursesLoading ? '—' : courses.length}
@@ -403,23 +298,6 @@ export function StudentDashboard() {
         </div>
 
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Today&apos;s Classes (sample)</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {todayClasses.map((cls) => (
-                <div key={cls.id} className="flex items-center gap-3 rounded-2xl bg-muted/50 p-3">
-                  <div className="h-10 w-1 rounded-full" style={{ backgroundColor: cls.color }} />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{cls.title}</p>
-                    <p className="text-xs text-muted-foreground">{cls.time}</p>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Course Progress</CardTitle>
