@@ -31,7 +31,16 @@ export function useCreateConversation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: createConversation,
-    onSuccess: () => {
+    onSuccess: (newConv) => {
+      queryClient.setQueryData(['conversations', 1], (old: any) => {
+        if (!old) return { conversations: [newConv], pagination: { total: 1, page: 1, limit: 20, totalPages: 1 } }
+        const exists = old.conversations?.some((c: any) => c.id === newConv.id)
+        if (exists) return old
+        return {
+          ...old,
+          conversations: [newConv, ...(old.conversations || [])],
+        }
+      })
       queryClient.invalidateQueries({ queryKey: ['conversations'] })
     },
   })

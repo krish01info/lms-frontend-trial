@@ -43,8 +43,9 @@ import {
   useCreateConversation,
 } from '@/hooks/useMessageData'
 import { useMessageSocket } from '@/hooks/useMessageSocket'
+import { useQuery } from '@tanstack/react-query'
+import api from '@/services/api'
 import { useMyCourses } from '@/hooks/useCourseData'
-import { useGradebook } from '@/hooks/useGradebookData'
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -96,11 +97,29 @@ export function TeacherMessagesPage() {
   // Fetch courses + enrolled students for the compose dialog
   const coursesQuery = useMyCourses()
   const courses = coursesQuery.data ?? []
-  const gradebookQuery = useGradebook(composeCourseId || undefined)
+  const [studentSearch, setStudentSearch] = useState('')
+
+  const courseStudentsQuery = useQuery({
+    queryKey: ['course-students', composeCourseId],
+    queryFn: async () => {
+      const res = await api.get(`/enrollments/course/${composeCourseId}`)
+      const list = res.data.data.enrollments || []
+      return list.map((e: any) => ({
+        id: e.user?.id || e.userId,
+        name: e.user?.name || 'Student',
+        email: e.user?.email || '',
+        avatar: e.user?.avatar || null,
+      })) as Array<{ id: string; name: string; email: string; avatar: string | null }>
+    },
+    enabled: !!composeCourseId,
+  })
+
   const availableStudents = useMemo(() => {
-    if (!gradebookQuery.data) return []
-    return gradebookQuery.data.rows.map((r) => ({ id: r.userId, name: r.name }))
-  }, [gradebookQuery.data])
+    const list = courseStudentsQuery.data ?? []
+    if (!studentSearch.trim()) return list
+    const q = studentSearch.toLowerCase()
+    return list.filter((s) => s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
+  }, [courseStudentsQuery.data, studentSearch])
 
   const activeConv = conversations.find((c) => c.id === activeConvId) ?? null
 
@@ -159,6 +178,7 @@ export function TeacherMessagesPage() {
   const openCompose = () => {
     setComposeCourseId('')
     setComposeStudentId('')
+    setStudentSearch('')
     setComposeOpen(true)
   }
 
@@ -495,11 +515,22 @@ export function TeacherMessagesPage() {
 
             {composeCourseId && (
               <div className="space-y-2">
-                <Label>Student</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Select Student</Label>
+                  {courseStudentsQuery.isLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
+                </div>
+                <Input
+                  placeholder="Filter students by name or email..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="h-8 text-xs mb-2"
+                />
                 <ScrollArea className="max-h-48">
                   <div className="space-y-1">
-                    {availableStudents.length === 0 && (
-                      <p className="py-4 text-center text-sm text-muted-foreground">No students enrolled in this course.</p>
+                    {!courseStudentsQuery.isLoading && availableStudents.length === 0 && (
+                      <p className="py-4 text-center text-sm text-muted-foreground">
+                        {studentSearch ? 'No matching students.' : 'No students enrolled in this course.'}
+                      </p>
                     )}
                     {availableStudents.map((s) => (
                       <button
@@ -507,14 +538,20 @@ export function TeacherMessagesPage() {
                         type="button"
                         onClick={() => setComposeStudentId(s.id)}
                         className={cn(
-                          'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-muted',
-                          composeStudentId === s.id && 'bg-primary/10 ring-1 ring-primary/30',
+                          'flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-muted',
+                          composeStudentId === s.id && 'bg-primary/10 ring-1 ring-primary/30 font-medium',
                         )}
                       >
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="text-[10px]">{s.name[0]}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{s.name}</span>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarImage src={s.avatar ?? undefined} />
+                            <AvatarFallback className="text-[10px]">{s.name[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-medium">{s.name}</p>
+                            <p className="truncate text-[10px] text-muted-foreground">{s.email}</p>
+                          </div>
+                        </div>
                       </button>
                     ))}
                   </div>
