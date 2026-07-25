@@ -134,9 +134,13 @@ export function CourseDetailPage() {
       return res.data.data.progress
     },
     onSuccess: () => {
-      // Refresh everywhere progress is shown
+      // Refresh all progress-related data across the app
       queryClient.invalidateQueries({ queryKey: ['progress-my'] })
       queryClient.invalidateQueries({ queryKey: ['course-progress-detail', id] })
+      // Update dashboard learning hours chart + stat card
+      queryClient.invalidateQueries({ queryKey: ['progress-weekly-hours'] })
+      // Update recent activity feed on dashboard
+      queryClient.invalidateQueries({ queryKey: ['activity-my'] })
     },
   })
 
