@@ -6,6 +6,7 @@ import { CardSkeleton } from '@/components/common/Skeleton'
 import { ErrorState } from '@/components/common/ErrorState'
 import { useAuth } from '@/contexts/AuthContext'
 import { useAdminDashboardStats } from '@/hooks/useAdmin'
+import { formatINR } from '@/utils/transformers'
 
 export function AdminDashboard() {
   const { user } = useAuth()
@@ -34,7 +35,7 @@ export function AdminDashboard() {
             <StatCard label="Active Courses" value={stats!.activeCourses} icon={BookOpen} iconClassName="bg-secondary/10" />
             <StatCard
               label="Revenue"
-              value={`₹${(stats!.totalRevenue / 100000).toFixed(1)}L`}
+              value={formatINR(stats!.totalRevenue)}
               icon={DollarSign}
               iconClassName="bg-emerald-500/10"
             />
