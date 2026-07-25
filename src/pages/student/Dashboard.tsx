@@ -105,6 +105,15 @@ export function StudentDashboard() {
     },
   })
 
+  // Live GPA — shares cache with ResultsPage
+  const { data: resultsData, isLoading: isResultsLoading } = useQuery({
+    queryKey: ['results-my'],
+    queryFn: async () => {
+      const res = await api.get('/results/my')
+      return res.data.data
+    },
+  })
+
   // Pending parent link requests — poll every 30s
   const { data: linkRequestData } = useQuery({
     queryKey: ['student-link-requests'],
@@ -162,6 +171,10 @@ export function StudentDashboard() {
   const recentActivity = activityData || []
   const isLoading = isCoursesLoading || isProgressLoading || isAttendanceLoading
   const attendancePercentage = attendanceData?.overallPercentage ?? 0
+
+  // Real GPA from /results/my — same source ResultsPage uses, no more sample data
+  const gpa = resultsData?.gpa ?? null
+  const percentile = resultsData?.percentile ?? null
 
   // Sum this week's hours for the stat card from the same weekly-hours response
   const totalWeeklyHours = weeklyHours.reduce((sum, day) => sum + day.hours, 0)
@@ -247,7 +260,14 @@ export function StudentDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Attendance" value={`${Math.round(attendancePercentage)}%`} icon={Users} />
-        <StatCard label="Current GPA" value="3.85" change="Sample data" trend="up" icon={Award} iconClassName="bg-emerald-500/10" />
+        <StatCard
+          label="Current GPA"
+          value={isResultsLoading ? '—' : gpa !== null ? gpa.toFixed(2) : 'N/A'}
+          change={!isResultsLoading && percentile !== null ? `Top ${100 - percentile}% of class` : undefined}
+          trend="up"
+          icon={Award}
+          iconClassName="bg-emerald-500/10"
+        />
         <StatCard
           label="Courses Active"
           value={isCoursesLoading ? '—' : courses.length}
