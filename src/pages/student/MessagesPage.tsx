@@ -65,17 +65,28 @@ function formatMessageTime(ts: string): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-/** Fetch enrolled courses — each contains instructor info we need for the compose dialog. */
-function useEnrolledCourses() {
+/** Fetch enrolled courses (or all courses fallback) — each contains instructor info for compose dialog. */
+function useCoursesForMessaging() {
   return useQuery({
-    queryKey: ['enrolled-courses'],
+    queryKey: ['messaging-courses'],
     queryFn: async () => {
-      const res = await api.get('/courses/enrolled')
-      return res.data.data.courses as Array<{
+      let courses: Array<{
         id: string
         title: string
         instructor: { id: string; name: string; avatar: string | null }
-      }>
+      }> = []
+      try {
+        const res = await api.get('/courses/enrolled')
+        courses = res.data.data.courses || []
+      } catch (_) {}
+
+      if (courses.length === 0) {
+        try {
+          const res = await api.get('/courses')
+          courses = res.data.data.courses || []
+        } catch (_) {}
+      }
+      return courses
     },
   })
 }
@@ -108,17 +119,17 @@ export function MessagesPage() {
   const markReadMutation = useMarkConversationRead(activeConvId ?? '')
   const createConvMutation = useCreateConversation()
 
-  // Fetch enrolled courses (for the compose dialog — pick an instructor to message)
-  const enrolledQuery = useEnrolledCourses()
-  const enrolledCourses = enrolledQuery.data ?? []
+  // Fetch courses (enrolled or all available courses)
+  const coursesQuery = useCoursesForMessaging()
+  const availableCourses = coursesQuery.data ?? []
 
-  // When a course is selected, extract the unique instructor
+  // When a course is selected, extract the instructor
   const instructors = useMemo(() => {
     if (!composeCourseId) return []
-    const course = enrolledCourses.find((c) => c.id === composeCourseId)
+    const course = availableCourses.find((c) => c.id === composeCourseId)
     if (!course?.instructor) return []
     return [{ id: course.instructor.id, name: course.instructor.name, avatar: course.instructor.avatar }]
-  }, [composeCourseId, enrolledCourses])
+  }, [composeCourseId, availableCourses])
 
   const activeConv = conversations.find((c) => c.id === activeConvId) ?? null
 
@@ -501,19 +512,18 @@ export function MessagesPage() {
               <Select
                 value={composeCourseId}
                 onValueChange={(v) => { setComposeCourseId(v); setComposeInstructorId('') }}
-                disabled={enrolledCourses.length === 0}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={enrolledQuery.isLoading ? 'Loading courses...' : 'Select a course'} />
+                  <SelectValue placeholder={coursesQuery.isLoading ? 'Loading courses...' : 'Select a course'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {enrolledCourses.map((c) => (
+                  {availableCourses.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {!enrolledQuery.isLoading && enrolledCourses.length === 0 && (
-                <p className="text-xs text-muted-foreground">You are not enrolled in any courses.</p>
+              {!coursesQuery.isLoading && availableCourses.length === 0 && (
+                <p className="text-xs text-muted-foreground">No courses available to message.</p>
               )}
             </div>
 
