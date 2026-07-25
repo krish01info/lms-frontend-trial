@@ -7,7 +7,7 @@ export { ParentCoursesPage } from './ChildViewPages'
 
 // ─── Role-agnostic pages (safe to share — use /messages, /notifications, /users/me)
 // ─── Role-agnostic pages (safe to share — use /messages, /users/me)
-export { MessagesPage as ParentMessagesPage } from '@/pages/student/MessagesPage'
+export { ParentMessagesPage } from './ParentMessagesPage'
 export { CalendarPage as ParentCalendarPage } from '@/pages/student/CalendarPage'
 export { ProfilePage as ParentProfilePage } from '@/pages/student/ProfilePage'
 
