@@ -184,10 +184,20 @@ export function MessagesPage() {
   const selectConversation = (id: string) => { setActiveConvId(id); setMobileView('chat') }
   const backToList = () => setMobileView('list')
 
+  // Auto-select first course when compose opens
+  useEffect(() => {
+    if (composeOpen && availableCourses.length > 0 && !composeCourseId) {
+      const first = availableCourses[0]
+      setComposeCourseId(first.id)
+      if (first.instructor?.id) setComposeInstructorId(first.instructor.id)
+    }
+  }, [composeOpen, availableCourses, composeCourseId])
+
   // ─── Compose: start a new conversation ────────────────────────────────
   const openCompose = () => {
-    setComposeCourseId('')
-    setComposeInstructorId('')
+    const first = availableCourses[0]
+    setComposeCourseId(first?.id || '')
+    setComposeInstructorId(first?.instructor?.id || '')
     setComposeOpen(true)
   }
 
