@@ -266,7 +266,7 @@ export function CourseEditPage() {
           setEditingLesson(null)
           setVideoFile(null)
         },
-        onError: () => toast.error('Could not update the lesson.'),
+        onError: (err: any) => toast.error(err?.response?.data?.message || 'Could not update the lesson.'),
       })
     } else {
       createLesson.mutate(payload, {
@@ -283,7 +283,7 @@ export function CourseEditPage() {
           setLessonDialogOpen(false)
           setVideoFile(null)
         },
-        onError: () => toast.error('Could not create the lesson.'),
+        onError: (err: any) => toast.error(err?.response?.data?.message || 'Could not create the lesson.'),
       })
     }
   }
