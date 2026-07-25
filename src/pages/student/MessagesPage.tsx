@@ -573,7 +573,7 @@ export function MessagesPage() {
               </div>
             )}
 
-            {composeCourseId && instructors.length === 0 && !enrolledQuery.isLoading && (
+            {composeCourseId && instructors.length === 0 && !coursesQuery.isLoading && (
               <p className="py-2 text-center text-sm text-muted-foreground">
                 No instructor assigned to this course.
               </p>

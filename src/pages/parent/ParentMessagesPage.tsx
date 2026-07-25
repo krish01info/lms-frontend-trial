@@ -4,11 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   MessageSquare,
-  MoreHorizontal,
   PenBox,
   Search,
   Send,
-  User,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,13 +24,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/utils/cn'
 import { useAuth } from '@/contexts/AuthContext'
