@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api/v1',
-  timeout: 15000,
+  timeout: 300000, // 5 minutes — needed for large video uploads to Cloudinary
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 })

@@ -130,7 +130,7 @@ export function CourseDetailPage() {
 
   const markCompleteMutation = useMutation({
     mutationFn: async (lessonId: string) => {
-      const res = await api.patch(`/progress/${lessonId}`)
+      const res = await api.patch(`/progress/${lessonId}`, { completed: true })
       return res.data.data.progress
     },
     onSuccess: () => {

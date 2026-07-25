@@ -220,7 +220,8 @@ export function CourseEditPage() {
       formData.append('video', videoFile)
 
       const res = await api.post(`/courses/${courseId}/lessons/${lessonId}/video`, formData, {
-        headers: { 'Content-Type': undefined },
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000, // 5 minutes for large uploads
         onUploadProgress: (progressEvent) => {
           if (progressEvent.total) {
             const pct = Math.round((progressEvent.loaded * 100) / progressEvent.total)
