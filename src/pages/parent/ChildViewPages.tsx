@@ -34,7 +34,16 @@ function useChildOverview(childId: string | null) {
     enabled: !!childId,
   })
 }
-
+function useChildNotifications(childId: string | null, unreadOnly = false) {
+  return useQuery({
+    queryKey: ['parent-child-notifications', childId, unreadOnly],
+    queryFn: async () => {
+      const res = await api.get(`/parent/children/${childId}/notifications`, { params: { unread: unreadOnly } })
+      return res.data.data as { items: any[]; unreadCount: number }
+    },
+    enabled: !!childId,
+  })
+}
 function getInitials(name: string) {
   return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'
 }
@@ -232,3 +241,92 @@ export function ParentAssignmentsPage() {
 
 // ─── Academic Progress Page ───────────────────────────────────────────────────
 export { ParentPerformancePage as ParentProgressPage }
+
+// ─── Child Notifications Page ─────────────────────────────────────────────────
+export function ParentNotificationsPage() {
+  const { data: children = [], isLoading: isLoadingChildren } = useChildren()
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (children.length > 0 && !selectedChildId) setSelectedChildId(children[0].id)
+  }, [children])
+
+  const { data, isLoading: isLoadingNotifications } = useChildNotifications(selectedChildId)
+  const notifications = data?.items ?? []
+  const unreadCount = data?.unreadCount ?? 0
+
+  if (isLoadingChildren) return (
+    <div className="space-y-4">
+      <div className="h-10 w-80 rounded-xl bg-muted animate-pulse" />
+      <div className="h-40 w-full rounded-2xl bg-muted animate-pulse" />
+    </div>
+  )
+
+  if (children.length === 0) return (
+    <Card>
+      <CardContent className="py-16 text-center text-muted-foreground">
+        No linked children found. Link a student account from the Dashboard.
+      </CardContent>
+    </Card>
+  )
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Child Notifications"
+        description="Updates about your child's courses, grades, and activity"
+      >
+        {unreadCount > 0 && <Badge variant="destructive">{unreadCount} unread</Badge>}
+      </PageHeader>
+
+      <div className="flex flex-wrap gap-2">
+        {children.map((child) => (
+          <button
+            key={child.id}
+            onClick={() => setSelectedChildId(child.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+              selectedChildId === child.id
+                ? 'bg-primary text-primary-foreground border-primary shadow'
+                : 'bg-muted border-border hover:border-primary/50'
+            }`}
+          >
+            <Avatar className="h-6 w-6">
+              <AvatarImage src={child.avatar} />
+              <AvatarFallback className="text-[10px]">{getInitials(child.name)}</AvatarFallback>
+            </Avatar>
+            {child.name}
+          </button>
+        ))}
+      </div>
+
+      {isLoadingNotifications ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => <div key={i} className="h-20 w-full rounded-2xl bg-muted animate-pulse" />)}
+        </div>
+      ) : notifications.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center text-muted-foreground">
+            No notifications for this child yet.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {notifications.map((n: any) => (
+            <Card key={n.id} className={!n.isRead ? 'border-primary/40' : undefined}>
+              <CardContent className="flex items-start justify-between gap-4 p-5">
+                <div>
+                  <div className="mb-1 flex items-center gap-2">
+                    <p className="font-medium">{n.title}</p>
+                    {!n.isRead && <Badge variant="secondary">New</Badge>}
+                  </div>
+                  <p className="text-sm text-muted-foreground">{n.message}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleString()}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -5,11 +5,13 @@ export { ParentAssignmentsPage } from './ChildViewPages'
 export { ParentProgressPage } from './ChildViewPages'
 
 // ─── Role-agnostic pages (safe to share — use /messages, /notifications, /users/me)
+// ─── Role-agnostic pages (safe to share — use /messages, /users/me)
 export { MessagesPage as ParentMessagesPage } from '@/pages/student/MessagesPage'
-export { NotificationsPage as ParentNotificationsPage } from '@/pages/student/NotificationsPage'
 export { CalendarPage as ParentCalendarPage } from '@/pages/student/CalendarPage'
 export { ProfilePage as ParentProfilePage } from '@/pages/student/ProfilePage'
 
+// ─── Notifications — parent-scoped (per-child), not the generic /notifications one
+export { ParentNotificationsPage } from './ChildViewPages'
 import { PageShell } from '@/components/common/PageShell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'

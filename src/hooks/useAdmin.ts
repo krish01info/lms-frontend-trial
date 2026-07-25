@@ -71,6 +71,7 @@ export function useAdminDashboardStats() {
         usersByRole: Record<string, number>
       }
     },
+    refetchInterval: 20000, // students pay outside any admin action, so nothing here to invalidate — poll instead
   })
 }
 
@@ -142,6 +143,7 @@ export function useAdminPayments(filters: ListFilters & { status?: string } = {}
       const { data } = await api.get('/admin/payments', { params: filters })
       return data.data as { payments: AdminPayment[]; pagination: Pagination }
     },
+    refetchInterval: 20000, // new rows land here whenever a student pays, outside any admin action
   })
 }
 
@@ -152,6 +154,7 @@ export function useAdminPaymentStats() {
       const { data } = await api.get('/admin/payments/stats')
       return data.data as { totalRevenue: number; pending: number; thisMonth: number }
     },
+    refetchInterval: 20000,
   })
 }
 
