@@ -128,18 +128,29 @@ export function CourseDetailPage() {
     enabled: !!id,
   })
 
+  // NOTE: mutationFn now takes the full lesson (not just id) so we can send
+  // a real request body — the backend's PATCH /progress/:lessonId only
+  // updates completed/watchedTime if they're present in req.body, and
+  // previously we were sending an empty body, so nothing ever actually
+  // changed except on first-time creation (defaulting to false/0).
   const markCompleteMutation = useMutation({
-    mutationFn: async (lessonId: string) => {
-      const res = await api.patch(`/progress/${lessonId}`, { completed: true })
+    mutationFn: async (lesson: { id: string; duration?: number }) => {
+      const res = await api.patch(`/progress/${lesson.id}`, {
+        completed: true,
+        // lesson.duration is in minutes (per transformLesson); backend
+        // stores watchedTime in seconds.
+        watchedTime: (lesson.duration ?? 0) * 60,
+      })
       return res.data.data.progress
     },
     onSuccess: () => {
-      // Refresh all progress-related data across the app
+      // Refresh everywhere progress is shown, including Dashboard's
+      // Learning Hours stat + Weekly Learning Progress chart, and the
+      // Recent Activity feed — all previously left stale after completing
+      // a lesson because they use different query keys than progress-my.
       queryClient.invalidateQueries({ queryKey: ['progress-my'] })
       queryClient.invalidateQueries({ queryKey: ['course-progress-detail', id] })
-      // Update dashboard learning hours chart + stat card
       queryClient.invalidateQueries({ queryKey: ['progress-weekly-hours'] })
-      // Update recent activity feed on dashboard
       queryClient.invalidateQueries({ queryKey: ['activity-my'] })
     },
   })
@@ -254,7 +265,7 @@ export function CourseDetailPage() {
                             size="sm"
                             variant="outline"
                             disabled={markCompleteMutation.isPending}
-                            onClick={() => markCompleteMutation.mutate(lesson.id)}
+                            onClick={() => markCompleteMutation.mutate(lesson)}
                           >
                             Mark Complete
                           </Button>
