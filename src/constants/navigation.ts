@@ -72,6 +72,7 @@ const teacherNav: NavConfig[] = [
 
 const parentNav: NavConfig[] = [
   { label: 'Dashboard', href: '/parent', icon: LayoutDashboard },
+  { label: 'Enrolled Courses', href: '/parent/courses', icon: BookOpen },
   { label: 'Child Performance', href: '/parent/performance', icon: TrendingUp },
   { label: 'Attendance', href: '/parent/attendance', icon: ClipboardCheck },
   { label: 'Assignments', href: '/parent/assignments', icon: ClipboardList },

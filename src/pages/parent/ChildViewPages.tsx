@@ -330,3 +330,86 @@ export function ParentNotificationsPage() {
     </div>
   )
 }
+
+// ─── Child Enrolled Courses Page ──────────────────────────────────────────────
+export function ParentCoursesPage() {
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Enrolled Courses"
+        description="View all courses your child is currently opted into and their completion status"
+      />
+      <ParentChildWrapper>
+        {(overview) => (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Showing <span className="font-semibold text-foreground">{overview.courses?.length || 0}</span> enrolled courses for{' '}
+                <span className="font-semibold text-foreground">{overview.child?.name}</span>
+              </p>
+            </div>
+
+            {!overview.courses || overview.courses.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
+                    <BookOpen className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-base font-semibold">No Enrolled Courses</p>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                    This student has not enrolled in any courses yet.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {overview.courses.map((course: any) => (
+                  <Card key={course.courseId} className="overflow-hidden hover:shadow-md transition-all flex flex-col justify-between">
+                    <div>
+                      {course.thumbnail ? (
+                        <div className="h-36 w-full overflow-hidden bg-muted">
+                          <img
+                            src={course.thumbnail}
+                            alt={course.courseTitle}
+                            className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-36 w-full bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 flex items-center justify-center">
+                          <BookOpen className="h-10 w-10 text-primary/40" />
+                        </div>
+                      )}
+                      <CardContent className="p-5 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold text-base line-clamp-2">{course.courseTitle}</h3>
+                          <Badge variant="secondary" className="shrink-0 font-medium">
+                            {course.percentage}%
+                          </Badge>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>Progress</span>
+                            <span>{course.completedLessons} / {course.totalLessons} Lessons</span>
+                          </div>
+                          <Progress value={course.percentage} className="h-2" />
+                        </div>
+                      </CardContent>
+                    </div>
+
+                    <div className="border-t bg-muted/30 p-3 px-5 text-xs text-muted-foreground flex items-center justify-between">
+                      <span>Status</span>
+                      <span className={`font-semibold ${course.percentage === 100 ? 'text-emerald-600' : 'text-primary'}`}>
+                        {course.percentage === 100 ? 'Completed' : 'In Progress'}
+                      </span>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </ParentChildWrapper>
+    </div>
+  )
+}

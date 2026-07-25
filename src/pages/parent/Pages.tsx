@@ -3,6 +3,7 @@ export { ParentPerformancePage } from './ChildViewPages'
 export { ParentAttendancePage } from './ChildViewPages'
 export { ParentAssignmentsPage } from './ChildViewPages'
 export { ParentProgressPage } from './ChildViewPages'
+export { ParentCoursesPage } from './ChildViewPages'
 
 // ─── Role-agnostic pages (safe to share — use /messages, /notifications, /users/me)
 // ─── Role-agnostic pages (safe to share — use /messages, /users/me)

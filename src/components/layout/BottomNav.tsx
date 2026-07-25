@@ -18,7 +18,7 @@ const bottomNavItems: Record<UserRole, { label: string; href: string; icon: type
   ],
   parent: [
     { label: 'Home', href: '/parent', icon: LayoutDashboard },
-    { label: 'Progress', href: '/parent/performance', icon: BookOpen },
+    { label: 'Courses', href: '/parent/courses', icon: BookOpen },
     { label: 'Messages', href: '/parent/messages', icon: MessageSquare },
     { label: 'Profile', href: '/parent/profile', icon: User },
   ],

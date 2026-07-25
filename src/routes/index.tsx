@@ -72,6 +72,7 @@ import {
   ParentCalendarPage,
   ReportsPage as ParentReportsPage,
   ParentProfilePage,
+  ParentCoursesPage,
 } from '@/pages/parent/Pages'
 
 // Admin
@@ -178,6 +179,7 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute allowedRoles={['parent']} />,
     children: [
       { path: '/parent', element: withSuspense(<ParentDashboard />) },
+      { path: '/parent/courses', element: withSuspense(<ParentCoursesPage />) },
       { path: '/parent/performance', element: withSuspense(<ParentPerformancePage />) },
       { path: '/parent/attendance', element: withSuspense(<ParentAttendancePage />) },
       { path: '/parent/assignments', element: withSuspense(<ParentAssignmentsPage />) },
