@@ -1,25 +1,64 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BookOpen, CheckCircle2, Clock, Download, FileText, HelpCircle, Loader2, MessageSquare, PenTool, Play, Star, Trophy, Users } from 'lucide-react'
-import { toast } from 'sonner'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { BookOpen, CheckCircle2, Clock, Download, File, FileImage, FileText, FileVideo, HelpCircle, MessageSquare, PenTool, Play, Star, Trophy, Users } from 'lucide-react'
 import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { EmptyState } from '@/components/common/EmptyState'
+import { AssignmentCard } from '@/components/common/AssignmentCard'
+import { SubmitAssignmentModal } from '@/components/common/SubmitAssignmentModal'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { mockAssignments } from '@/constants/mockData'
 import { useQuizList } from '@/hooks/useQuizData'
 import { useMyAttempt } from '@/hooks/useQuizData'
-import type { ApiQuiz } from '@/types'
+import type { ApiQuiz, ApiResource, Assignment } from '@/types'
 import api from '@/services/api'
-import { transformCourse, transformLesson } from '@/utils/transformers'
+import { transformCourse, transformLesson, transformAssignment } from '@/utils/transformers'
+import { cn } from '@/utils/cn'
+
+// ─── Resource type helpers — same logic as ResourcesPage ───────────────────
+
+type ResourceType = 'pdf' | 'doc' | 'video' | 'image' | 'other'
+
+function inferType(mimeType: string): ResourceType {
+  if (mimeType.includes('pdf')) return 'pdf'
+  if (mimeType.includes('word') || mimeType.includes('document')) return 'doc'
+  if (mimeType.includes('video') || mimeType.includes('mp4') || mimeType.includes('webm')) return 'video'
+  if (mimeType.includes('image') || mimeType.includes('png') || mimeType.includes('jpg') || mimeType.includes('jpeg') || mimeType.includes('webp')) return 'image'
+  return 'other'
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const typeIcons: Record<ResourceType, typeof FileText> = {
+  pdf: FileText,
+  doc: File,
+  video: FileVideo,
+  image: FileImage,
+  other: File,
+}
+
+const typeColors: Record<ResourceType, string> = {
+  pdf: 'bg-red-500/10 text-red-600',
+  doc: 'bg-blue-500/10 text-blue-600',
+  video: 'bg-purple-500/10 text-purple-600',
+  image: 'bg-amber-500/10 text-amber-600',
+  other: 'bg-muted text-muted-foreground',
+}
 
 export function CourseDetailPage() {
   const { id } = useParams()
   const queryClient = useQueryClient()
+
+  const [submitTarget, setSubmitTarget] = useState<Assignment | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
   const {
     data: course,
@@ -43,9 +82,10 @@ export function CourseDetailPage() {
     enabled: !!id,
   })
 
-  // Per-lesson progress for this course
-  const { data: lessonProgress } = useQuery({
-    queryKey: ['progress-course', id],
+  // Per-lesson completion status for THIS course — separate from the
+  // per-course rollup used elsewhere (ProgressPage/ProfilePage/Dashboard)
+  const { data: courseProgressDetail } = useQuery({
+    queryKey: ['course-progress-detail', id],
     queryFn: async () => {
       const res = await api.get(`/progress/${id}`)
       return res.data.data.lessons
@@ -62,38 +102,51 @@ export function CourseDetailPage() {
     },
   })
 
-  // Mutation to mark a lesson as complete
-  const completeMutation = useMutation({
-    mutationFn: async (lesson: { id: string; duration?: number }) => {
-      const res = await api.patch(`/progress/${lesson.id}`, {
-        completed: true,
-        // lesson.duration is already in seconds (matches backend watchedTime
-        // units — see Lesson.duration in schema.prisma). No real per-second
-        // video-watch tracking exists yet, so we approximate "time studied"
-        // as the full lesson duration when a student marks it complete.
-        // This powers Learning Hours / the Weekly Progress chart.
-        watchedTime: lesson.duration ?? 0,
-      })
+  // Live resources for this course — same endpoint ResourcesPage fetches per-course
+  const { data: resources, isLoading: resourcesLoading, isError: resourcesError } = useQuery({
+    queryKey: ['course-resources', id],
+    queryFn: async () => {
+      const res = await api.get(`/courses/${id}/resources`)
+      return res.data.data.resources as ApiResource[]
+    },
+    enabled: !!id,
+  })
+
+  // Live assignments for this course — same /assignments endpoint AssignmentsPage
+  // uses, scoped with ?courseId= (supported server-side per assignments.routes.js)
+  const {
+    data: assignments,
+    isLoading: assignmentsLoading,
+    isError: assignmentsError,
+    refetch: refetchAssignments,
+  } = useQuery({
+    queryKey: ['course-assignments', id],
+    queryFn: async () => {
+      const res = await api.get('/assignments', { params: { courseId: id } })
+      return res.data.data.assignments.map(transformAssignment) as Assignment[]
+    },
+    enabled: !!id,
+  })
+
+  const markCompleteMutation = useMutation({
+    mutationFn: async (lessonId: string) => {
+      const res = await api.patch(`/progress/${lessonId}`)
       return res.data.data.progress
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['progress-course', id] })
+      // Refresh everywhere progress is shown
       queryClient.invalidateQueries({ queryKey: ['progress-my'] })
-      queryClient.invalidateQueries({ queryKey: ['progress-weekly-hours'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance-my'] })
-      toast.success('Lesson marked as complete!')
-    },
-    onError: () => {
-      toast.error('Could not mark lesson as complete. Please try again.')
+      queryClient.invalidateQueries({ queryKey: ['course-progress-detail', id] })
     },
   })
 
-  // Build a map of lessonId -> completed status from the per-lesson progress
-  const completedMap = new Map<string, boolean>()
-  if (lessonProgress) {
-    lessonProgress.forEach((lp: any) => {
-      completedMap.set(lp.id, lp.completed)
-    })
+  const isLessonCompleted = (lessonId: string) => {
+    return courseProgressDetail?.find((l: any) => l.id === lessonId)?.completed ?? false
+  }
+
+  function handleOpenSubmit(assignment: Assignment) {
+    setSubmitTarget(assignment)
+    setModalOpen(true)
   }
 
   const courseProgress = progressData?.find((p: any) => p.courseId === id)
@@ -171,12 +224,12 @@ export function CourseDetailPage() {
 
               {!lessonsLoading &&
                 lessons?.map((lesson: any) => {
-                  const isCompleted = completedMap.get(lesson.id) ?? false
+                  const completed = isLessonCompleted(lesson.id)
                   return (
                     <Card key={lesson.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="flex items-center gap-4 p-4">
-                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${isCompleted ? 'bg-emerald-500/10' : 'bg-primary/10'}`}>
-                          {isCompleted ? (
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${completed ? 'bg-emerald-500/10' : 'bg-primary/10'}`}>
+                          {completed ? (
                             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                           ) : (
                             <Play className="h-5 w-5 text-primary" />
@@ -186,28 +239,22 @@ export function CourseDetailPage() {
                           <p className="font-medium">{lesson.title}</p>
                           <p className="text-sm text-muted-foreground">
                             {lesson.description || `Lesson ${lesson.order}`}
-                            {lesson.duration ? ` · ${Math.floor(lesson.duration / 60)}:${String(lesson.duration % 60).padStart(2, '0')}` : ''}
+                            {lesson.duration ? ` · ${lesson.duration} min` : ''}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {lesson.isPreview && <Badge variant="secondary">Preview</Badge>}
+                        {lesson.isPreview && <Badge variant="secondary">Preview</Badge>}
+                        {completed ? (
+                          <Badge variant="secondary">Completed</Badge>
+                        ) : (
                           <Button
-                            variant={isCompleted ? 'outline' : 'default'}
                             size="sm"
-                            onClick={() => completeMutation.mutate({ id: lesson.id, duration: lesson.duration })}
-                            disabled={completeMutation.isPending}
-                            className={isCompleted ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' : ''}
+                            variant="outline"
+                            disabled={markCompleteMutation.isPending}
+                            onClick={() => markCompleteMutation.mutate(lesson.id)}
                           >
-                            {completeMutation.isPending ? (
-                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                            ) : isCompleted ? (
-                              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                            ) : (
-                              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-                            )}
-                            {isCompleted ? 'Completed' : 'Mark Complete'}
+                            Mark Complete
                           </Button>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
                   )
@@ -215,31 +262,85 @@ export function CourseDetailPage() {
             </TabsContent>
 
             <TabsContent value="resources" className="space-y-3">
-              {['Chapter 7 Notes.pdf', 'Practice Problems.pdf', 'Formula Sheet.pdf'].map((file) => (
-                <Card key={file}>
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-3">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <span className="text-sm font-medium">{file}</span>
-                    </div>
-                    <Button variant="ghost" size="sm"><Download className="h-4 w-4" /></Button>
-                  </CardContent>
-                </Card>
-              ))}
+              {resourcesLoading && (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />
+                  ))}
+                </div>
+              )}
+
+              {resourcesError && (
+                <EmptyState
+                  icon={FileText}
+                  title="Could not load resources"
+                  description="Something went wrong. Please try again."
+                />
+              )}
+
+              {!resourcesLoading && !resourcesError && (!resources || resources.length === 0) && (
+                <EmptyState
+                  icon={FileText}
+                  title="No resources yet"
+                  description="This course doesn't have any resources uploaded yet."
+                />
+              )}
+
+              {!resourcesLoading && !resourcesError && resources?.map((resource) => {
+                const type = inferType(resource.fileType)
+                const Icon = typeIcons[type]
+                return (
+                  <Card key={resource.id}>
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', typeColors[type])}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium block truncate">{resource.title}</span>
+                          <span className="text-xs text-muted-foreground">{formatSize(resource.fileSize)}</span>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" asChild>
+                        <a href={resource.fileUrl} target="_blank" rel="noopener noreferrer">
+                          <Download className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </TabsContent>
 
             <TabsContent value="assignments" className="space-y-3">
-              {mockAssignments.filter((a) => a.course === course.title).map((a) => (
-                <Card key={a.id}>
-                  <CardContent className="flex items-center justify-between p-4">
-                    <div>
-                      <p className="font-medium">{a.title}</p>
-                      <p className="text-sm text-muted-foreground">Due {a.dueDate}</p>
-                    </div>
-                    <Badge>{a.status}</Badge>
-                  </CardContent>
-                </Card>
-              ))}
+              {assignmentsLoading && (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-20 rounded-2xl bg-muted animate-pulse" />
+                  ))}
+                </div>
+              )}
+
+              {assignmentsError && (
+                <EmptyState
+                  icon={BookOpen}
+                  title="Could not load assignments"
+                  description="Something went wrong. Please try again."
+                />
+              )}
+
+              {!assignmentsLoading && !assignmentsError && (!assignments || assignments.length === 0) && (
+                <EmptyState
+                  icon={BookOpen}
+                  title="No assignments yet"
+                  description="This course doesn't have any assignments yet."
+                />
+              )}
+
+              {!assignmentsLoading && !assignmentsError &&
+                assignments?.map((a) => (
+                  <AssignmentCard key={a.id} assignment={a} onSubmit={() => handleOpenSubmit(a)} />
+                ))}
             </TabsContent>
 
             <TabsContent value="quizzes" className="space-y-3">
@@ -299,6 +400,13 @@ export function CourseDetailPage() {
           </Card>
         </div>
       </div>
+
+      <SubmitAssignmentModal
+        assignment={submitTarget}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onSuccess={() => refetchAssignments()}
+      />
     </div>
   )
 }
