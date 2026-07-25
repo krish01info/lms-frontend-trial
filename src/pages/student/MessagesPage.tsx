@@ -511,7 +511,15 @@ export function MessagesPage() {
               <Label>Course</Label>
               <Select
                 value={composeCourseId}
-                onValueChange={(v) => { setComposeCourseId(v); setComposeInstructorId('') }}
+                onValueChange={(v) => {
+                  setComposeCourseId(v)
+                  const course = availableCourses.find((c) => c.id === v)
+                  if (course?.instructor?.id) {
+                    setComposeInstructorId(course.instructor.id)
+                  } else {
+                    setComposeInstructorId('')
+                  }
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={coursesQuery.isLoading ? 'Loading courses...' : 'Select a course'} />

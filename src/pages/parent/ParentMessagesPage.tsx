@@ -198,8 +198,15 @@ export function ParentMessagesPage() {
   const selectConversation = (id: string) => { setActiveConvId(id); setMobileView('chat') }
   const backToList = () => setMobileView('list')
 
+  // Auto-select first child when compose opens
+  useEffect(() => {
+    if (composeOpen && childrenList.length > 0 && !selectedChildId) {
+      setSelectedChildId(childrenList[0].id)
+    }
+  }, [composeOpen, childrenList, selectedChildId])
+
   const openCompose = () => {
-    setSelectedChildId('')
+    setSelectedChildId(childrenList[0]?.id || '')
     setSelectedRecipientId('')
     setRecipientSearch('')
     setComposeOpen(true)
