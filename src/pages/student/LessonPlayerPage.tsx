@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -13,7 +13,6 @@ import {
   Maximize2,
   Minimize2,
   Play,
-  SkipForward,
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -26,7 +25,35 @@ import { cn } from '@/utils/cn'
 import api from '@/services/api'
 import { transformLesson } from '@/utils/transformers'
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Lesson {
+  id: string
+  title: string
+  type: 'VIDEO' | 'TEXT' | string
+  videoUrl?: string
+  content?: string
+  description?: string
+  duration?: number
+}
+
+interface LessonProgress {
+  id: string
+  completed: boolean
+}
+
+interface Course {
+  title: string
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Maps a lesson type to a human-readable label */
+function lessonTypeLabel(type: Lesson['type']): string {
+  if (type === 'VIDEO') return 'Video'
+  if (type === 'TEXT') return 'Reading'
+  return type
+}
 
 /** Extract YouTube video ID from various URL formats */
 function getYouTubeId(url: string): string | null {
@@ -41,16 +68,9 @@ function getYouTubeId(url: string): string | null {
   return null
 }
 
-/** Check if URL is a YouTube link */
-function isYouTubeUrl(url: string): boolean {
-  return getYouTubeId(url) !== null
-}
-
 // ─── Video Player Component ──────────────────────────────────────────────────
 
 function VideoPlayer({ videoUrl, title }: { videoUrl: string; title: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-
   if (!videoUrl) {
     return (
       <div className="flex aspect-video w-full items-center justify-center rounded-2xl bg-muted/50">
@@ -62,8 +82,9 @@ function VideoPlayer({ videoUrl, title }: { videoUrl: string; title: string }) {
     )
   }
 
-  if (isYouTubeUrl(videoUrl)) {
-    const ytId = getYouTubeId(videoUrl)
+  const ytId = getYouTubeId(videoUrl)
+
+  if (ytId) {
     return (
       <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-2xl">
         <iframe
@@ -81,7 +102,6 @@ function VideoPlayer({ videoUrl, title }: { videoUrl: string; title: string }) {
   return (
     <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-2xl">
       <video
-        ref={videoRef}
         src={videoUrl}
         title={title}
         controls
@@ -102,7 +122,7 @@ function LessonSidebarItem({
   index,
   onClick,
 }: {
-  lesson: any
+  lesson: Lesson
   isActive: boolean
   isCompleted: boolean
   index: number
@@ -135,7 +155,7 @@ function LessonSidebarItem({
           {lesson.title}
         </p>
         <p className="text-xs text-muted-foreground">
-          {lesson.type === 'VIDEO' ? 'Video' : lesson.type === 'TEXT' ? 'Reading' : lesson.type}
+          {lessonTypeLabel(lesson.type)}
           {lesson.duration ? ` · ${lesson.duration} min` : ''}
         </p>
       </div>
@@ -155,8 +175,11 @@ export function LessonPlayerPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [isTheaterMode, setIsTheaterMode] = useState(false)
 
+  // Stable base URL for this course
+  const courseUrl = `/student/courses/${courseId}`
+
   // ── Fetch course info ─────────────────────────────────────────────────────
-  const { data: course } = useQuery({
+  const { data: course } = useQuery<Course>({
     queryKey: ['course', courseId],
     queryFn: async () => {
       const res = await api.get(`/courses/${courseId}`)
@@ -166,7 +189,7 @@ export function LessonPlayerPage() {
   })
 
   // ── Fetch all lessons ─────────────────────────────────────────────────────
-  const { data: lessons, isLoading: lessonsLoading } = useQuery({
+  const { data: lessons, isLoading: lessonsLoading } = useQuery<Lesson[]>({
     queryKey: ['course-lessons', courseId],
     queryFn: async () => {
       const res = await api.get(`/courses/${courseId}/lessons`)
@@ -176,7 +199,7 @@ export function LessonPlayerPage() {
   })
 
   // ── Fetch current lesson detail ───────────────────────────────────────────
-  const { data: currentLesson, isLoading: lessonLoading } = useQuery({
+  const { data: currentLesson, isLoading: lessonLoading } = useQuery<Lesson>({
     queryKey: ['lesson', courseId, lessonId],
     queryFn: async () => {
       const res = await api.get(`/courses/${courseId}/lessons/${lessonId}`)
@@ -186,7 +209,7 @@ export function LessonPlayerPage() {
   })
 
   // ── Fetch progress for this course ────────────────────────────────────────
-  const { data: courseProgressDetail } = useQuery({
+  const { data: courseProgressDetail } = useQuery<LessonProgress[]>({
     queryKey: ['course-progress-detail', courseId],
     queryFn: async () => {
       const res = await api.get(`/progress/${courseId}`)
@@ -211,41 +234,59 @@ export function LessonPlayerPage() {
   })
 
   // ── Derived state ─────────────────────────────────────────────────────────
+
+  /** Stable helper to check if a lesson is completed */
+  const isLessonCompleted = useCallback(
+    (lid: string) => courseProgressDetail?.find((l) => l.id === lid)?.completed ?? false,
+    [courseProgressDetail]
+  )
+
   const currentIndex = useMemo(
-    () => lessons?.findIndex((l: any) => l.id === lessonId) ?? -1,
+    () => lessons?.findIndex((l) => l.id === lessonId) ?? -1,
     [lessons, lessonId]
   )
 
   const prevLesson = currentIndex > 0 ? lessons?.[currentIndex - 1] : null
   const nextLesson = lessons && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null
 
-  const isLessonCompleted = (lid: string) =>
-    courseProgressDetail?.find((l: any) => l.id === lid)?.completed ?? false
-
   const currentCompleted = lessonId ? isLessonCompleted(lessonId) : false
 
   const completedCount = useMemo(
-    () => lessons?.filter((l: any) => isLessonCompleted(l.id)).length ?? 0,
-    [lessons, courseProgressDetail]
+    () => lessons?.filter((l) => isLessonCompleted(l.id)).length ?? 0,
+    [lessons, isLessonCompleted]
   )
 
   const progressPercent = lessons?.length ? Math.round((completedCount / lessons.length) * 100) : 0
 
   // ── Navigate to a lesson ──────────────────────────────────────────────────
-  const goToLesson = (lid: string) => {
-    navigate(`/student/courses/${courseId}/lessons/${lid}`, { replace: true })
-  }
+  const goToLesson = useCallback(
+    (lid: string) => {
+      navigate(`${courseUrl}/lessons/${lid}`, { replace: true })
+    },
+    [navigate, courseUrl]
+  )
+
+  // ── Go to next lesson, auto-marking the current one complete ─────────────
+  const goToNextLesson = useCallback(() => {
+    if (!nextLesson) return
+    if (lessonId && !currentCompleted) {
+      markCompleteMutation.mutate(lessonId)
+    }
+    goToLesson(nextLesson.id)
+  }, [nextLesson, lessonId, currentCompleted, markCompleteMutation, goToLesson])
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' && nextLesson) goToLesson(nextLesson.id)
+      // Avoid triggering when typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'ArrowRight') goToNextLesson()
       if (e.key === 'ArrowLeft' && prevLesson) goToLesson(prevLesson.id)
       if (e.key === 'b' || e.key === 'B') setSidebarOpen((v) => !v)
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [nextLesson, prevLesson])
+  }, [goToNextLesson, goToLesson, prevLesson])
 
   // ── Loading ───────────────────────────────────────────────────────────────
   if (lessonsLoading || lessonLoading) {
@@ -266,7 +307,7 @@ export function LessonPlayerPage() {
           <BookOpen className="mx-auto h-12 w-12 text-muted-foreground/40" />
           <h2 className="mt-4 text-lg font-semibold">Lesson not found</h2>
           <p className="text-sm text-muted-foreground">This lesson may have been removed.</p>
-          <Button className="mt-4" onClick={() => navigate(`/student/courses/${courseId}`)}>
+          <Button className="mt-4" onClick={() => navigate(courseUrl)}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Course
           </Button>
         </div>
@@ -282,7 +323,7 @@ export function LessonPlayerPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate(`/student/courses/${courseId}`)}
+            onClick={() => navigate(courseUrl)}
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
@@ -329,9 +370,9 @@ export function LessonPlayerPage() {
         {/* ── Video / Content Area ───────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto">
           <div className={cn('mx-auto', isTheaterMode ? 'max-w-full px-0' : 'max-w-5xl px-4 py-6')}>
-            {/* Video Player */}
-            {currentLesson.type === 'VIDEO' && currentLesson.videoUrl && (
-              <VideoPlayer videoUrl={currentLesson.videoUrl} title={currentLesson.title} />
+            {/* Video Player - handles missing URL internally */}
+            {currentLesson.type === 'VIDEO' && (
+              <VideoPlayer videoUrl={currentLesson.videoUrl ?? ''} title={currentLesson.title} />
             )}
 
             {/* Text Content */}
@@ -349,11 +390,6 @@ export function LessonPlayerPage() {
                   </div>
                 </CardContent>
               </Card>
-            )}
-
-            {/* No video for VIDEO-type lesson */}
-            {currentLesson.type === 'VIDEO' && !currentLesson.videoUrl && (
-              <VideoPlayer videoUrl="" title={currentLesson.title} />
             )}
 
             {/* ── Lesson Info & Actions ──────────────────────────────────── */}
@@ -400,13 +436,13 @@ export function LessonPlayerPage() {
                   <div />
                 )}
                 {nextLesson ? (
-                  <Button onClick={() => goToLesson(nextLesson.id)} className="gap-2">
+                  <Button onClick={goToNextLesson} className="gap-2">
                     Next Lesson <ChevronRight className="h-4 w-4" />
                   </Button>
                 ) : (
                   <Button
                     variant="outline"
-                    onClick={() => navigate(`/student/courses/${courseId}`)}
+                    onClick={() => navigate(courseUrl)}
                     className="gap-2"
                   >
                     Back to Course <ArrowLeft className="h-4 w-4" />
@@ -459,7 +495,7 @@ export function LessonPlayerPage() {
                 {/* Lesson List */}
                 <ScrollArea className="flex-1 px-2 pb-4">
                   <div className="space-y-1 py-2">
-                    {lessons?.map((lesson: any, idx: number) => (
+                    {lessons?.map((lesson, idx) => (
                       <LessonSidebarItem
                         key={lesson.id}
                         lesson={lesson}
