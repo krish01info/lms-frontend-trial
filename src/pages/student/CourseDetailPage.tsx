@@ -230,37 +230,39 @@ export function CourseDetailPage() {
                 lessons?.map((lesson: any) => {
                   const completed = isLessonCompleted(lesson.id)
                   return (
-                    <Card key={lesson.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="flex items-center gap-4 p-4">
-                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${completed ? 'bg-emerald-500/10' : 'bg-primary/10'}`}>
+                    <Link key={lesson.id} to={`/student/courses/${id}/lessons/${lesson.id}`} className="block">
+                      <Card className="hover:shadow-md transition-shadow cursor-pointer hover:ring-1 hover:ring-primary/20">
+                        <CardContent className="flex items-center gap-4 p-4">
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${completed ? 'bg-emerald-500/10' : 'bg-primary/10'}`}>
+                            {completed ? (
+                              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                            ) : (
+                              <Play className="h-5 w-5 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-medium">{lesson.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {lesson.description || `Lesson ${lesson.order}`}
+                              {lesson.duration ? ` · ${lesson.duration} min` : ''}
+                            </p>
+                          </div>
+                          {lesson.isPreview && <Badge variant="secondary">Preview</Badge>}
                           {completed ? (
-                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                            <Badge variant="secondary">Completed</Badge>
                           ) : (
-                            <Play className="h-5 w-5 text-primary" />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={markCompleteMutation.isPending}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); markCompleteMutation.mutate(lesson.id) }}
+                            >
+                              Mark Complete
+                            </Button>
                           )}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-medium">{lesson.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {lesson.description || `Lesson ${lesson.order}`}
-                            {lesson.duration ? ` · ${lesson.duration} min` : ''}
-                          </p>
-                        </div>
-                        {lesson.isPreview && <Badge variant="secondary">Preview</Badge>}
-                        {completed ? (
-                          <Badge variant="secondary">Completed</Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={markCompleteMutation.isPending}
-                            onClick={() => markCompleteMutation.mutate(lesson.id)}
-                          >
-                            Mark Complete
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </Link>
                   )
                 })}
             </TabsContent>

@@ -34,6 +34,7 @@ import { NotificationsPage } from '@/pages/student/NotificationsPage'
 import { ProfilePage } from '@/pages/student/ProfilePage'
 import { SettingsPage } from '@/pages/student/SettingsPage'
 import { AITutorPage } from '@/pages/student/AITutorPage'
+import { LessonPlayerPage } from '@/pages/student/LessonPlayerPage'
 
 // Teacher
 import { TeacherDashboard } from '@/pages/teacher/Dashboard'
@@ -128,6 +129,7 @@ export const router = createBrowserRouter([
       { path: '/student', element: withSuspense(<StudentDashboard />) },
       { path: '/student/courses', element: withSuspense(<CoursesPage />) },
       { path: '/student/courses/:id', element: withSuspense(<CourseDetailPage />) },
+      { path: '/student/courses/:courseId/lessons/:lessonId', element: withSuspense(<LessonPlayerPage />) },
       { path: '/student/assignments', element: withSuspense(<AssignmentsPage />) },
       { path: '/student/quizzes', element: withSuspense(<QuizzesPage />) },
       { path: '/student/quizzes/take/:quizId', element: withSuspense(<QuizTakePage />) },
