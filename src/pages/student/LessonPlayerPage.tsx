@@ -220,8 +220,15 @@ export function LessonPlayerPage() {
 
   // ── Mark complete mutation ────────────────────────────────────────────────
   const markCompleteMutation = useMutation({
-    mutationFn: async (lid: string) => {
-      const res = await api.patch(`/progress/${lid}`, { completed: true })
+    mutationFn: async ({ id, duration }: { id: string; duration?: number }) => {
+      const res = await api.patch(`/progress/${id}`, {
+        completed: true,
+        // duration is in seconds (matches backend watchedTime units, same
+        // convention as CourseDetailPage's Mark Complete button). No real
+        // per-second watch tracking exists yet, so we approximate "time
+        // studied" as the full lesson duration when marked complete.
+        watchedTime: duration ?? 0,
+      })
       return res.data.data.progress
     },
     onSuccess: () => {
@@ -270,10 +277,10 @@ export function LessonPlayerPage() {
   const goToNextLesson = useCallback(() => {
     if (!nextLesson) return
     if (lessonId && !currentCompleted) {
-      markCompleteMutation.mutate(lessonId)
+      markCompleteMutation.mutate({ id: lessonId, duration: currentLesson?.duration })
     }
     goToLesson(nextLesson.id)
-  }, [nextLesson, lessonId, currentCompleted, markCompleteMutation, goToLesson])
+  }, [nextLesson, lessonId, currentCompleted, currentLesson, markCompleteMutation, goToLesson])
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -416,7 +423,7 @@ export function LessonPlayerPage() {
                   </Badge>
                 ) : (
                   <Button
-                    onClick={() => markCompleteMutation.mutate(lessonId!)}
+                    onClick={() => markCompleteMutation.mutate({ id: lessonId!, duration: currentLesson.duration })}
                     disabled={markCompleteMutation.isPending}
                     className="gap-2"
                   >
