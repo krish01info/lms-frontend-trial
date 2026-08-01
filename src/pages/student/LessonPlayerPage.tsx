@@ -55,6 +55,12 @@ function lessonTypeLabel(type: Lesson['type']): string {
   return type
 }
 
+/** Converts a duration stored in seconds to a rounded minutes label */
+function formatDurationMinutes(durationSeconds?: number): string {
+  if (!durationSeconds) return ''
+  return `${Math.round(durationSeconds / 60)} min`
+}
+
 /** Extract YouTube video ID from various URL formats */
 function getYouTubeId(url: string): string | null {
   const patterns = [
@@ -156,7 +162,7 @@ function LessonSidebarItem({
         </p>
         <p className="text-xs text-muted-foreground">
           {lessonTypeLabel(lesson.type)}
-          {lesson.duration ? ` · ${lesson.duration} min` : ''}
+          {lesson.duration ? ` · ${formatDurationMinutes(lesson.duration)}` : ''}
         </p>
       </div>
       {isActive && (
@@ -223,8 +229,9 @@ export function LessonPlayerPage() {
     mutationFn: async ({ id, duration }: { id: string; duration?: number }) => {
       const res = await api.patch(`/progress/${id}`, {
         completed: true,
-        // duration is in seconds (matches backend watchedTime units, same
-        // convention as CourseDetailPage's Mark Complete button). No real
+        // duration is in seconds (matches backend watchedTime units — see
+        // Lesson.duration in schema.prisma and the teacher-side "Add Lesson"
+        // form, which is explicitly labeled "Duration (seconds)"). No real
         // per-second watch tracking exists yet, so we approximate "time
         // studied" as the full lesson duration when marked complete.
         watchedTime: duration ?? 0,
@@ -411,7 +418,7 @@ export function LessonPlayerPage() {
                     <Badge variant="outline" className="text-xs">
                       {currentLesson.type === 'VIDEO' ? 'Video Lesson' : 'Reading'}
                     </Badge>
-                    {currentLesson.duration && <span>{currentLesson.duration} min</span>}
+                    {currentLesson.duration && <span>{formatDurationMinutes(currentLesson.duration)}</span>}
                     <span>Lesson {currentIndex + 1} of {lessons?.length ?? 0}</span>
                   </div>
                 </div>
