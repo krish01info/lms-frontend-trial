@@ -24,16 +24,13 @@ function inferType(mimeType: string): ResourceType {
   if (mimeType.includes('image') || mimeType.includes('png') || mimeType.includes('jpg') || mimeType.includes('jpeg') || mimeType.includes('webp')) return 'image'
   return 'other'
 }
-// Cloudinary "raw" URLs come back with no file extension in the visible
-// filename (e.g. .../raw/upload/v123/learnflow/courses/resources/abc123),
-// so browsers can't tell what type of file it is and may open it in the
-// wrong app. Inserting fl_attachment:<name> tells Cloudinary to respond
-// with a Content-Disposition header carrying the real filename — this
-// works even though the link is cross-origin, unlike the plain `download`
-// attribute on an <a> tag.
 function buildDownloadUrl(fileUrl: string, title: string): string {
-  const safeName = encodeURIComponent(title.replace(/\s+/g, '_'))
-  return fileUrl.replace('/upload/', `/upload/fl_attachment:${safeName}/`)
+  // fl_attachment (without an embedded filename) is more reliable for
+  // "raw" resource type deliveries than fl_attachment:<name> — the
+  // filename can instead be requested via the attachment query param.
+  return fileUrl.includes('?')
+    ? `${fileUrl}&fl_attachment=true`
+    : `${fileUrl}?fl_attachment=true`
 }
 
 function formatSize(bytes: number): string {
