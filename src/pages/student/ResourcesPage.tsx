@@ -24,6 +24,17 @@ function inferType(mimeType: string): ResourceType {
   if (mimeType.includes('image') || mimeType.includes('png') || mimeType.includes('jpg') || mimeType.includes('jpeg') || mimeType.includes('webp')) return 'image'
   return 'other'
 }
+// Cloudinary "raw" URLs come back with no file extension in the visible
+// filename (e.g. .../raw/upload/v123/learnflow/courses/resources/abc123),
+// so browsers can't tell what type of file it is and may open it in the
+// wrong app. Inserting fl_attachment:<name> tells Cloudinary to respond
+// with a Content-Disposition header carrying the real filename — this
+// works even though the link is cross-origin, unlike the plain `download`
+// attribute on an <a> tag.
+function buildDownloadUrl(fileUrl: string, title: string): string {
+  const safeName = encodeURIComponent(title.replace(/\s+/g, '_'))
+  return fileUrl.replace('/upload/', `/upload/fl_attachment:${safeName}/`)
+}
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -244,9 +255,9 @@ export function ResourcesPage() {
                       className="mt-4 w-full gap-2"
                       asChild
                     >
-                      <a href={resource.fileUrl} target="_blank" rel="noopener noreferrer">
-                        <Download className="h-4 w-4" />
-                        Download
+                      <a href={buildDownloadUrl(resource.fileUrl, resource.title)} target="_blank" rel="noopener noreferrer">
+                          <Download className="h-4 w-4" />
+                          Download
                       </a>
                     </Button>
                   </CardContent>
