@@ -24,10 +24,11 @@ function inferType(mimeType: string): ResourceType {
   if (mimeType.includes('image') || mimeType.includes('png') || mimeType.includes('jpg') || mimeType.includes('jpeg') || mimeType.includes('webp')) return 'image'
   return 'other'
 }
-function buildDownloadUrl(fileUrl: string, title: string): string {
+function buildDownloadUrl(fileUrl: string): string {
   // fl_attachment (without an embedded filename) is more reliable for
   // "raw" resource type deliveries than fl_attachment:<name> — the
-  // filename can instead be requested via the attachment query param.
+  // stored filename (already correct, per the upload-side fix) is used
+  // automatically for the downloaded file's name.
   return fileUrl.includes('?')
     ? `${fileUrl}&fl_attachment=true`
     : `${fileUrl}?fl_attachment=true`
@@ -252,7 +253,7 @@ export function ResourcesPage() {
                       className="mt-4 w-full gap-2"
                       asChild
                     >
-                      <a href={buildDownloadUrl(resource.fileUrl, resource.title)} target="_blank" rel="noopener noreferrer">
+                      <a href={buildDownloadUrl(resource.fileUrl)} target="_blank" rel="noopener noreferrer">
                           <Download className="h-4 w-4" />
                           Download
                       </a>

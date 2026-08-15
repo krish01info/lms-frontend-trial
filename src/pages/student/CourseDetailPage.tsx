@@ -31,10 +31,11 @@ function inferType(mimeType: string): ResourceType {
   return 'other'
 }
 
-function buildDownloadUrl(fileUrl: string, title: string): string {
+function buildDownloadUrl(fileUrl: string): string {
   // fl_attachment (without an embedded filename) is more reliable for
   // "raw" resource type deliveries than fl_attachment:<name> — the
-  // filename can instead be requested via the attachment query param.
+  // stored filename (already correct, per the upload-side fix) is used
+  // automatically for the downloaded file's name.
   return fileUrl.includes('?')
     ? `${fileUrl}&fl_attachment=true`
     : `${fileUrl}?fl_attachment=true`
@@ -327,7 +328,7 @@ const markCompleteMutation = useMutation({
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" asChild>
-                        <a href={buildDownloadUrl(resource.fileUrl, resource.title)} target="_blank" rel="noopener noreferrer">
+                        <a href={buildDownloadUrl(resource.fileUrl)} target="_blank" rel="noopener noreferrer">
                           <Download className="h-4 w-4" />
                         </a>
                       </Button>
