@@ -42,6 +42,12 @@ export function AssignmentCard({ assignment, onView, onSubmit }: AssignmentCardP
           <Badge variant={status.variant}>{status.label}</Badge>
         </div>
 
+        {assignment.description && (
+          <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap">
+            {assignment.description}
+          </p>
+        )}
+
         {assignment.status === 'graded' && assignment.grade !== null && (
           <div className="mt-4 space-y-1">
             <div className="flex items-center gap-2">
@@ -52,6 +58,17 @@ export function AssignmentCard({ assignment, onView, onSubmit }: AssignmentCardP
             </div>
             {assignment.feedback && (
               <p className="text-sm text-muted-foreground italic">"{assignment.feedback}"</p>
+            )}
+            {assignment.submissionFileUrl && (
+              
+                <a href={assignment.submissionFileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                <Download className="h-3.5 w-3.5" />
+                View submitted file
+              </a>
             )}
           </div>
         )}
