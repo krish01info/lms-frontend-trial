@@ -38,10 +38,12 @@ export function CertificatesPage() {
   const progress = progressData || []
 
   const certifiedCourseIds = new Set(certs.map((c: any) => c.courseId))
-  // Courses in progress but not yet certified
-  const inProgressCourses = progress.filter(
-    (p: any) => !certifiedCourseIds.has(p.courseId) && p.percentage < 100
-  )
+const completedAwaitingCert = progress.filter(
+  (p: any) => !certifiedCourseIds.has(p.courseId) && p.percentage === 100
+)
+const inProgressCourses = progress.filter(
+  (p: any) => !certifiedCourseIds.has(p.courseId) && p.percentage < 100
+)
 
   if (isLoading) {
     return (
@@ -137,6 +139,35 @@ export function CertificatesPage() {
               </Card>
             </motion.div>
           ))}
+          {completedAwaitingCert.map((course: any, i: number) => (
+  <motion.div
+    key={course.courseId}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: (certs.length + i) * 0.05 }}
+  >
+    <Card className="border-amber-500/20">
+      <CardContent className="p-0">
+        <div className="rounded-t-2xl bg-muted/50 p-6">
+          <div className="flex items-center justify-between">
+            <GraduationCap className="h-10 w-10 text-amber-500" />
+            <Badge variant="warning">Awaiting Certificate</Badge>
+          </div>
+          <h3 className="mt-4 text-lg font-bold">{course.courseTitle}</h3>
+          <p className="mt-2 text-sm font-medium text-emerald-600">Course complete!</p>
+        </div>
+        <div className="space-y-3 p-6">
+          <p className="text-sm text-muted-foreground">
+            You've completed this course. Your certificate will be issued by your instructor soon.
+          </p>
+          <Button variant="outline" className="w-full" disabled>
+            Certificate pending
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  </motion.div>
+))}
 
           {inProgressCourses.map((course: any, i: number) => (
             <motion.div
