@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowUpDown, Download, GraduationCap, Search, TrendingUp, Users } from 'lucide-react'
+import { ArrowUpDown, Award, Check, Download, GraduationCap, Search, TrendingUp, Users } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useMyCourses } from '@/hooks/useCourseData'
 import { useGradebook } from '@/hooks/useGradebookData'
 import { useAttendanceSummary } from '@/hooks/useAttendanceData'
+import { useCourseCompletion, useCourseCertificates, useIssueCertificate } from '@/hooks/useCertificateData'
 import type { ApiGradebookRow } from '@/types'
 
 type SortKey = 'name' | 'overallGrade' | 'quizAverage' | 'assignmentAverage' | 'attendance'
@@ -73,13 +74,18 @@ interface StudentRecord {
   assignmentAverage: number | null
   overallGrade: number | null
   attendancePct: number | null
+  completionPct: number | null
+  hasCertificate: boolean
 }
 
 function mergeData(
   gradebookRows: ApiGradebookRow[],
   attendanceSummary: { userId: string; percentage: number }[],
+  completion: { userId: string; percentage: number }[],
+  certifiedUserIds: Set<string>,
 ): StudentRecord[] {
   const attendanceMap = new Map(attendanceSummary.map((a) => [a.userId, a.percentage]))
+  const completionMap = new Map(completion.map((c) => [c.userId, c.percentage]))
   return gradebookRows.map((row) => ({
     userId: row.userId,
     name: row.name,
@@ -88,6 +94,8 @@ function mergeData(
     assignmentAverage: row.assignmentAverage,
     overallGrade: row.overallGrade,
     attendancePct: attendanceMap.get(row.userId) ?? null,
+    completionPct: completionMap.get(row.userId) ?? null,
+    hasCertificate: certifiedUserIds.has(row.userId),
   }))
 }
 
@@ -106,18 +114,24 @@ export function StudentPerformancePage() {
 
   const gradebookQuery = useGradebook(courseId || undefined)
   const attendanceQuery = useAttendanceSummary(courseId || undefined)
+  const completionQuery = useCourseCompletion(courseId || undefined)
+  const certificatesQuery = useCourseCertificates(courseId || undefined)
+  const issueCertificate = useIssueCertificate(courseId || undefined)
 
-  const isLoading = coursesQuery.isLoading || gradebookQuery.isLoading || attendanceQuery.isLoading
-  const isError = coursesQuery.isError || gradebookQuery.isError || attendanceQuery.isError
+  const isLoading = coursesQuery.isLoading || gradebookQuery.isLoading || attendanceQuery.isLoading || completionQuery.isLoading
+  const isError = coursesQuery.isError || gradebookQuery.isError || attendanceQuery.isError || completionQuery.isError
 
-  // Merge gradebook + attendance data
+  // Merge gradebook + attendance + completion + certificate data
   const students: StudentRecord[] = useMemo(() => {
     if (!gradebookQuery.data) return []
+    const certifiedUserIds = new Set((certificatesQuery.data ?? []).map((c) => c.userId))
     return mergeData(
       gradebookQuery.data.rows,
       attendanceQuery.data?.summary ?? [],
+      completionQuery.data ?? [],
+      certifiedUserIds,
     )
-  }, [gradebookQuery.data, attendanceQuery.data])
+  }, [gradebookQuery.data, attendanceQuery.data, completionQuery.data, certificatesQuery.data])
 
   // Compute aggregate stats
   const stats = useMemo(() => {
@@ -420,12 +434,13 @@ export function StudentPerformancePage() {
                       <TableHead className="cursor-pointer select-none" onClick={() => toggleSort('attendance')}>
                         <span className="flex items-center">Attendance <SortIcon columnKey="attendance" /></span>
                       </TableHead>
+                      <TableHead>Certificate</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredStudents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="py-12 text-center text-sm text-muted-foreground">
+                        <TableCell colSpan={6} className="py-12 text-center text-sm text-muted-foreground">
                           No students match your filters.
                         </TableCell>
                       </TableRow>
@@ -491,6 +506,28 @@ export function StudentPerformancePage() {
                               </div>
                             ) : (
                               <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {student.hasCertificate ? (
+                              <Badge variant="secondary" className="gap-1">
+                                <Check className="h-3 w-3" />
+                                Issued
+                              </Badge>
+                            ) : student.completionPct === 100 ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={issueCertificate.isPending}
+                                onClick={() => issueCertificate.mutate(student.userId)}
+                              >
+                                <Award className="mr-1.5 h-3.5 w-3.5" />
+                                Issue Certificate
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                {student.completionPct ?? 0}% complete
+                              </span>
                             )}
                           </TableCell>
                         </TableRow>
