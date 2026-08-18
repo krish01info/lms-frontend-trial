@@ -495,3 +495,49 @@ export interface ApiNotification {
   type: 'GENERAL' | 'ENROLLMENT' | 'ASSIGNMENT' | 'QUIZ' | 'PAYMENT' | 'CERTIFICATE' | 'PARENT_STUDENT' | 'ANNOUNCEMENT'
   createdAt: string
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APPEND THIS BLOCK to the end of your existing src/types/index.ts
+// (Do not replace the file — just paste this at the bottom.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /discussions, GET /discussions/:id, POST /discussions, POST /discussions/:id/replies,
+// POST /discussions/:id/like, DELETE /discussions/:id, PATCH /discussions/:id/pin
+export interface ApiDiscussionAuthor {
+  id: string
+  name: string
+  avatar: string | null
+}
+
+// Shape returned by GET /discussions (list) and as the `thread` payload from
+// POST /discussions and PATCH /discussions/:id/pin.
+export interface ApiDiscussionThread {
+  id: string
+  title: string
+  content: string
+  tags: string[]
+  pinned: boolean
+  createdAt: string
+  updatedAt: string
+  courseId: string
+  course: { id: string; title: string }
+  author: ApiDiscussionAuthor
+  replies: number // reply COUNT in list responses — see ApiDiscussionThreadDetail below
+  likes: number
+  likedByMe: boolean
+}
+
+export interface ApiDiscussionReply {
+  id: string
+  content: string
+  createdAt: string
+  author: ApiDiscussionAuthor
+}
+
+// Shape returned by GET /discussions/:id.
+// NOTE: the backend's formatThread() spreads the list shape (replies: number)
+// and then overwrites `replies` with the actual reply array — so on the detail
+// endpoint `replies` is an array, not a count. This type reflects that.
+export interface ApiDiscussionThreadDetail extends Omit<ApiDiscussionThread, 'replies'> {
+  replies: ApiDiscussionReply[]
+}
